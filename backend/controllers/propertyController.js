@@ -11,43 +11,43 @@ exports.createProperty = async (req, res) => {
 };
 
 exports.getAllProperties = async (req, res) => {
-    const { keyword, type, city, minPrice, maxPrice } = req.query;
-  
-    const filter = {
-      status: 'approved',
-    };
-  
-    if (keyword) {
-      filter.$or = [
-        { title: { $regex: keyword, $options: 'i' } },
-        { 'location.city': { $regex: keyword, $options: 'i' } },
-        { 'location.state': { $regex: keyword, $options: 'i' } },
-      ];
-    }
-  
-    if (type) {
-      filter.type = type; // 'rent' or 'sale'
-    }
-  
-    if (city) {
-      filter['location.city'] = { $regex: city, $options: 'i' };
-    }
-  
-    if (minPrice || maxPrice) {
-      filter.price = {};
-      if (minPrice) filter.price.$gte = parseInt(minPrice);
-      if (maxPrice) filter.price.$lte = parseInt(maxPrice);
-    }
-  
-    try {
-      const properties = await Property.find(filter);
-      res.json(properties);
-    } catch (err) {
-      res.status(500).json({ message: err.message });
-    }
+  const { keyword, type, city, minPrice, maxPrice } = req.query;
+
+  const filter = {
+    status: 'approved',
   };
-  
-  
+
+  if (keyword) {
+    filter.$or = [
+      { title: { $regex: keyword, $options: 'i' } },
+      { 'location.city': { $regex: keyword, $options: 'i' } },
+      { 'location.state': { $regex: keyword, $options: 'i' } },
+    ];
+  }
+
+  if (type) {
+    filter.type = type; // 'rent' or 'sale'
+  }
+
+  if (city) {
+    filter['location.city'] = { $regex: city, $options: 'i' };
+  }
+
+  if (minPrice || maxPrice) {
+    filter.price = {};
+    if (minPrice) filter.price.$gte = parseInt(minPrice);
+    if (maxPrice) filter.price.$lte = parseInt(maxPrice);
+  }
+
+  try {
+    const properties = await Property.find(filter);
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
 
 exports.getPropertyById = async (req, res) => {
   try {
@@ -126,18 +126,40 @@ exports.rejectProperty = async (req, res) => {
   }
 };
 
- 
+exports.adminDeleteProperty = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    await Property.findByIdAndDelete(req.params.id);
+
+    // Notify owner
+    await User.findByIdAndUpdate(property.owner, {
+      $push: {
+        notifications: {
+          type: 'property-deleted',
+          message: `Your property "${property.title}" has been deleted.`,
+        }
+      }
+    });
+
+    res.json({ message: 'Property deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
   exports.searchProperties = async (req, res) => {
     try {
       const query = req.query.q;
-  
+
       if (!query) {
         return res.status(400).json({ message: 'Search query is required' });
       }
-  
+
       // Using case-insensitive regex to search multiple fields
       const regex = new RegExp(query, 'i');
-  
+
       const properties = await Property.find({
         status: 'approved',
         $or: [
@@ -148,13 +170,13 @@ exports.rejectProperty = async (req, res) => {
           { 'location.country': regex },
         ],
       });
-  
+
       res.json(properties);
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
   };
-  
+
 
   exports.adminGetAllProperties = async (req, res) => {
     try {
@@ -164,4 +186,3 @@ exports.rejectProperty = async (req, res) => {
       res.status(500).json({ message: err.message });
     }
   };
-  

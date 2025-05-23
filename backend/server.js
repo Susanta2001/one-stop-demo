@@ -8,7 +8,12 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(cors());
+// Add this CORS middleware BEFORE your routes:
+app.use(cors({
+    origin: 'http://localhost:3000', // your React app URL
+    credentials: true, // allow cookies/auth headers
+  }));
+  
 app.use(express.json()); // To parse JSON bodies
 
 // Routes (you'll add these soon)
