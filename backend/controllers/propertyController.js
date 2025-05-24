@@ -47,8 +47,6 @@ exports.getAllProperties = async (req, res) => {
   }
 };
 
-
-
 exports.getPropertyById = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
@@ -149,40 +147,68 @@ exports.adminDeleteProperty = async (req, res) => {
   }
 };
 
-  exports.searchProperties = async (req, res) => {
-    try {
-      const query = req.query.q;
+exports.searchProperties = async (req, res) => {
+  try {
+    const query = req.query.q;
 
-      if (!query) {
-        return res.status(400).json({ message: 'Search query is required' });
-      }
-
-      // Using case-insensitive regex to search multiple fields
-      const regex = new RegExp(query, 'i');
-
-      const properties = await Property.find({
-        status: 'approved',
-        $or: [
-          { title: regex },
-          { description: regex },
-          { 'location.city': regex },
-          { 'location.state': regex },
-          { 'location.country': regex },
-        ],
-      });
-
-      res.json(properties);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+    if (!query) {
+      return res.status(400).json({ message: 'Search query is required' });
     }
-  };
 
+    // Using case-insensitive regex to search multiple fields
+    const regex = new RegExp(query, 'i');
 
-  exports.adminGetAllProperties = async (req, res) => {
-    try {
-      const properties = await Property.find().populate('owner', 'name email');
-      res.json(properties);
-    } catch (err) {
-      res.status(500).json({ message: err.message });
-    }
-  };
+    const properties = await Property.find({
+      status: 'approved',
+      $or: [
+        { title: regex },
+        { description: regex },
+        { 'location.city': regex },
+        { 'location.state': regex },
+        { 'location.country': regex },
+      ],
+    });
+
+    res.json(properties);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.adminGetAllProperties = async (req, res) => {
+  try {
+    const properties = await Property.find().populate('owner', 'name email');
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getOwnerProperties = async (req, res) => {
+  try {
+    const properties = await Property.find({ owner: req.user._id });
+    res.status(200).json(properties);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch properties', error: err.message });
+  }
+};
+
+exports.getOwnerStats = async (req, res) => {
+  try {
+    const ownerId = req.user._id;
+
+    const totalProperties = await Property.countDocuments({ owner: ownerId });
+    const approvedProperties = await Property.countDocuments({ owner: ownerId, status: 'approved' });
+    const pendingProperties = await Property.countDocuments({ owner: ownerId, status: 'pending' });
+    const rejectedProperties = await Property.countDocuments({ owner: ownerId, status: 'rejected' });
+
+    res.status(200).json({
+      totalProperties,
+      approvedProperties,
+      pendingProperties,
+      rejectedProperties,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch stats', error: err.message });
+  }
+};
